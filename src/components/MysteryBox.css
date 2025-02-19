@@ -1,0 +1,18 @@
+.mystery-box {
+  padding-top: 80px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+}
+
+.mystery-box h1 {
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.mystery-box p {
+  color: #666;
+} 

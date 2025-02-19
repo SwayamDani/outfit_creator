@@ -1,0 +1,153 @@
+.signin-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #6c63ff;  /* Purple background */
+  margin: 0;
+  padding: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+}
+
+.signin-card {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  width: 400px;  /* Fixed width for desktop */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.signin-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.signin-header h2 {
+  font-size: 24px;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.signin-header p {
+  color: #666;
+  font-size: 14px;
+}
+
+.error-message {
+  background-color: #fee2e2;
+  color: #991b1b;
+  padding: 12px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-size: 14px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #6c63ff;
+}
+
+.submit-button {
+  width: 100%;
+  padding: 12px;
+  background: #6c63ff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.divider {
+  position: relative;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e0e0e0;
+}
+
+.divider span {
+  position: relative;
+  background: white;
+  padding: 0 10px;
+  color: #666;
+  font-size: 14px;
+}
+
+.toggle-button {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  color: #6c63ff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.google-button {
+  width: 100%;
+  padding: 12px;
+  background: white;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  transition: background-color 0.2s;
+}
+
+.google-button:hover {
+  background-color: #f8f8f8;
+}
+
+.google-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
+}
+
+@media (max-width: 480px) {
+  .signin-card {
+    padding: 20px;
+  }
+  
+  .signin-header h2 {
+    font-size: 24px;
+  }
+} 

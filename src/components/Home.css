@@ -1,0 +1,76 @@
+.home {
+  padding-top: 80px; /* Account for fixed navbar */
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.hero-section {
+  background: linear-gradient(135deg, #6c63ff 0%, #5046e4 100%);
+  color: white;
+  padding: 6rem 2rem;
+  text-align: center;
+}
+
+.hero-section h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.hero-section p {
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+
+.features-section {
+  padding: 4rem 2rem;
+  background: white;
+}
+
+.features-section h2 {
+  text-align: center;
+  margin-bottom: 3rem;
+  color: #333;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.feature-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: transform 0.2s;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+}
+
+.feature-card h3 {
+  color: #6c63ff;
+  margin-bottom: 1rem;
+}
+
+.about-section {
+  padding: 4rem 2rem;
+  background: #f8f9fa;
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.about-section h2 {
+  color: #333;
+  margin-bottom: 1.5rem;
+}
+
+.about-section p {
+  color: #666;
+  line-height: 1.6;
+} 

@@ -23,3 +23,6 @@ yarn-debug.log*
 yarn-error.log*
 .env
 package-lock.json
+
+*-service-account.json
+unirides-5913a-firebase-adminsdk-uo610-bdc6af5983.json

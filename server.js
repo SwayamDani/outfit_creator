@@ -4,19 +4,89 @@ const cors = require("cors");
 const OpenAI = require("openai");
 const fs = require("fs");
 const dotenv = require("dotenv");
+const admin = require("firebase-admin");
+const Stripe = require('stripe');
 
 dotenv.config();
-const app = express();
-const port = 5000;
 
+// Initialize Firebase Admin with service account
+const serviceAccount = require("./unirides-5913a-firebase-adminsdk-uo610-bdc6af5983"); // You'll need to add this file
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+const db = admin.firestore();
+const app = express();
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const port = 5000;
 app.use(cors());
 app.use(express.json());
-
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// Configure Multer for file uploads
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
+
+const authenticateUser = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  console.log('Auth header exists:', !!authHeader);
+
+  if (!authHeader) {
+    console.log('No authorization header provided');
+    return res.status(401).json({ error: 'No authorization header' });
+  }
+
+  try {
+    const token = authHeader.split('Bearer ')[1];
+    console.log('Token extracted from header:', !!token);
+
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    console.log('Token verified, user ID:', decodedToken.uid);
+
+    req.user = decodedToken;
+    next();
+  } catch (error) {
+    console.error('Auth error:', error);
+    res.status(401).json({ error: 'Invalid token', details: error.message });
+  }
+};
+
+const checkUsageLimits = async (req, res, next) => {
+  const userDoc = await db.collection('users').doc(req.user.uid).get();
+  const userData = userDoc.data();
+
+  const today = new Date().toISOString().split('T')[0];
+  const lastReset = userData.lastReset.split('T')[0];
+
+  // Reset daily counts if it's a new day
+  if (today !== lastReset) {
+    await userDoc.ref.update({
+      dailyTextGenerations: userData.subscriptionTier === 'free' ? 5 : 999999,
+      dailyImageGenerations: userData.subscriptionTier === 'free' ? 2 : 
+        userData.subscriptionTier === 'premium' ? 10 : 999999,
+      lastReset: today
+    });
+    next();
+    return;
+  }
+
+  // Check limits based on generation type
+  if (req.path.includes('/generate-text')) {
+    if (userData.dailyTextGenerations <= 0) {
+      return res.status(403).json({ error: 'Daily text generation limit reached' });
+    }
+    await userDoc.ref.update({
+      dailyTextGenerations: userData.dailyTextGenerations - 1
+    });
+  } else if (req.path.includes('/generate-image')) {
+    if (userData.dailyImageGenerations <= 0) {
+      return res.status(403).json({ error: 'Daily image generation limit reached' });
+    }
+    await userDoc.ref.update({
+      dailyImageGenerations: userData.dailyImageGenerations - 1
+    });
+  }
+
+  next();
+};
 
 async function analyzeImagesAndGenerateOutfits(base64Images) {
   const imageContents = base64Images.map(base64Image => ({
@@ -50,15 +120,19 @@ async function analyzeImagesAndGenerateOutfits(base64Images) {
             - **Material** (e.g., cotton, acid-wash fabric).
             - **Aesthetic influence** (e.g., gothic streetwear, punk grunge, Y2K fashion).
 
-            Step 2: Generate a full outfit that matches the clothing style. It should be casual and not too bold. Include:
-            - **Matching bottoms** (e.g., ripped jeans, cargo pants, shorts).
-            - **Shoes** (e.g., sneakers, combat boots, platform shoes).
-            - **Accessories** (e.g., chains, bracelets, rings, hats).
-            - **Outerwear (if necessary)** (e.g., jackets, flannels, hoodies).
+            Step 2: Generate a full outfit that matches the clothing style. Include:
+            - **Matching top/Given top** (e.g., t-shirt, tank top, crop top) and **Color of top** (detailed color, not only black/white or something give proper color) and **Sleeve length** (e.g., short, long, sleeveless) and **Graphic design** (e.g., skull, angel wings, gothic text) and **Fit and style** (e.g., oversized, slim, vintage).**Suit/Jacket** (e.g., blazer, leather jacket, trench coat) and **Color of suit/jacket** (e.g., black, white, blue) and **Fit and style** (e.g., oversized, slim, vintage).
+            - **Matching bottoms/Given bottoms** (e.g., ripped jeans, cargo pants, shorts) and **Color of bottoms** (e.g., black, white, blue) and **Fit and style** (e.g., ripped, cargo, skinny) and **Material** (e.g., cotton, acid-wash fabric).
+            - **Shoes** (e.g., sneakers, combat boots, platform shoes) and **Color of shoes** (e.g., black, white, blue).
+            - **Accessories** (e.g., chains, bracelets, rings, hats) and **Color of accessories** (e.g., black, white, blue).
+            - **Outerwear (if necessary)** (e.g., jackets, flannels, hoodies) and **Color of outerwear** (e.g., black, white, blue).
             - **Gender** (e.g. male female, unisex).
             - **Overall aesthetic/style** (e.g., dark streetwear, vintage casual).
-            - **Pose recommendation** for DALL·E to follow.
+            - **Pose recommendation** for DALL·E to follow It should not be sitting or lying down.
             - **Background setting** that matches the aesthetic.
+
+            **Important:**
+            -In the response you should not give "top", "bottoms", "shoes", "accessories", "outerwear" as an array.
 
             Format the response as JSON:
             \`\`\`json
@@ -88,21 +162,29 @@ async function analyzeImagesAndGenerateOutfits(base64Images) {
     ],
   });
 
-  console.log("GPT response received. Generating outfits...");
+  console.log("GPT response received. Generating outfits..." + gptResponse);
   return gptResponse;
 }
 
-app.post("/generate-outfits", upload.array("images"), async (req, res) => {
+app.post("/generate-outfits", upload.array("images"), authenticateUser, checkUsageLimits, async (req, res) => {
   try {
+    console.log('Request received with auth:', !!req.user);
+
     if (!req.files || req.files.length === 0) {
+      console.log('No files in request');
       return res.status(400).json({ error: "No images uploaded" });
     }
 
+    console.log('Number of files:', req.files.length);
+
     const uploadedFiles = req.files.map(file => file.buffer.toString("base64"));
-    console.log("Sending images to GPT for outfit generation...");
+    console.log('Processing images for outfit generation...');
+
     const gptResponse = await analyzeImagesAndGenerateOutfits(uploadedFiles);
+    console.log('GPT response received');
+
     let gptGeneratedText = gptResponse.choices[0].message.content;
-    console.log("Raw GPT Response:", gptGeneratedText);
+    console.log('Processing GPT response...');
 
     gptGeneratedText = gptGeneratedText.replace(/```json|```/g, "").trim();
     let outfitData;
@@ -112,84 +194,95 @@ app.post("/generate-outfits", upload.array("images"), async (req, res) => {
       console.error("Failed to parse JSON from GPT response:", error);
       return res.status(500).json({ error: "Failed to parse JSON from GPT response" });
     }
+
+    console.log('Sending response back to client');
+    console.log("outfitData ",outfitData);
+    console.log("gptGeneratedText ",gptGeneratedText);
     res.json({ uploadedFiles, outfitData, gptGeneratedText });
-  }catch (error) {
-      console.error("Error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Server error", details: error.message });
+  }
+});
 
-  app.post("/generate-outfit-image", upload.array("data"), async (req, res) => {
-    const outfitImages = [];
-  
-    let gptGeneratedText = req.body.rawResponse;
-    console.log("Raw GPT Response:", gptGeneratedText);
-  
-    // Step 2: Remove code block formatting before parsing JSON
-    gptGeneratedText = gptGeneratedText.replace(/```json|```/g, "").trim();
-  
-    let outfitData;
-    try {
-      outfitData = JSON.parse(gptGeneratedText);
-    } catch (error) {
-      console.error("Failed to parse JSON from GPT response:", error);
-      return res.status(400).json({ error: "Failed to parse JSON from GPT response" });
-    }
-  
-    if (!outfitData?.outfits || outfitData.outfits.length === 0) {
-      console.error("No structured outfit data found in GPT response.");
-      return res.status(400).json({ error: "No structured outfit data found in GPT response" });
-    }
-  
-    console.log("Generated Outfit Data:", outfitData);
-  
-    // Step 3: Use the outfit data for DALL·E image generation
-    console.log("Generating fashion images...");
-  
-    try {
-      for (const [index, outfit] of outfitData.outfits.entries()) {
-        const imageResponse = await openai.images.generate({
-          model: "dall-e-3",
-          prompt: `
-          Generate a **full-body, high-fashion model wearing the EXACT outfit** as described:
-          
-          - **Top:** ${outfit.top}
-          - **Bottoms:** ${outfit.bottoms}
-          - **Shoes:** ${outfit.shoes}
-          - **Accessories:** ${outfit.accessories}
-          - **Outerwear:** ${outfit.outerwear || "None"}
-          
-          The model should match the following pose: **${outfit.pose_recommendation}**  
-          The model's gender should be **${outfit.gender}**
-          The background should be: **${outfit.background_setting}**  
-          
-          This is a **highly detailed fashion photoshoot image** with **realistic textures and fabric accuracy**.  
-          Ensure the **color, material, and style exactly match** the description.  
-          The model should be posed naturally, displaying the entire outfit clearly. 
-          It is for an ecommerce website showcasing the outfit. 
-          The person in the image should be a fashion model.
-          And in the image the person should always be **portrait**, standing along the length.
-          the person should not be sitting or lying down.
-          there should only be one person in the image.
-          `,
-          n: 1,
-          size: "1024x1024", // Ensures full-body proportions
-        });
-  
-        outfitImages.push(imageResponse.data[0].url);
-        console.log("Generated image for outfit");
-      }
-  
-      res.json({ outfitImages });
-    } catch (error) {
-      console.error("Error generating outfit images:", error);
-      res.status(500).json({ error: "Failed to generate outfit images" });
-    }
-  });
+app.post("/generate-outfit-image", upload.array("data"), authenticateUser, checkUsageLimits, async (req, res) => {
+  const outfitImages = [];
 
-    
-    
+  let gptGeneratedText = req.body.rawResponse;
 
+  // Step 2: Remove code block formatting before parsing JSON
+  gptGeneratedText = gptGeneratedText.replace(/```json|```/g, "").trim();
+
+  let outfitData;
+  try {
+    outfitData = JSON.parse(gptGeneratedText);
+  } catch (error) {
+    console.error("Failed to parse JSON from GPT response:", error);
+    return res.status(400).json({ error: "Failed to parse JSON from GPT response" });
+  }
+
+  if (!outfitData?.outfits || outfitData.outfits.length === 0) {
+    console.error("No structured outfit data found in GPT response.");
+    return res.status(400).json({ error: "No structured outfit data found in GPT response" });
+  }
+
+  // Step 3: Use the outfit data for DALL·E image generation
+  console.log("Generating fashion images...");
+
+  try {
+    for (const [index, outfit] of outfitData.outfits.entries()) {
+      const imageResponse = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: `
+        Generate a **full-body, high-fashion model wearing the EXACT outfit** as described:
+        
+        - **Top:** ${outfit.top}
+        - **Bottoms:** ${outfit.bottoms}
+        - **Shoes:** ${outfit.shoes}
+        - **Accessories:** ${outfit.accessories}
+        - **Outerwear:** ${outfit.outerwear || "None"}
+        
+        The model should match the following pose: **${outfit.pose_recommendation}**  
+        The model's gender should be **${outfit.gender}**
+        The background should be: **${outfit.background_setting}**  
+        
+        This is a **highly detailed fashion photoshoot image** with **realistic textures and fabric accuracy**.  
+        Ensure the **color, material, and style exactly match** the description.  
+        The model should be posed naturally, displaying the entire outfit clearly. 
+        It is for an ecommerce website showcasing the outfit. 
+        The person in the image should be a fashion model.
+        And in the image the person should always be **portrait**, standing along the length.
+        the person should not be sitting or lying down.
+        there should only be one person in the image.
+        `,
+        n: 1,
+        size: "1024x1024", // Ensures full-body proportions
+      });
+
+      outfitImages.push(imageResponse.data[0].url);
+      console.log("Generated image for outfit");
+    }
+
+    res.json({ outfitImages });
+  } catch (error) {
+    console.error("Error generating outfit images:", error);
+    res.status(500).json({ error: "Failed to generate outfit images" });
+  }
+});
+
+app.post('/create-payment-intent', async (req, res) => {
+  const { amount } = req.body;
+
+  try {
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency: 'usd',
+    });
+    res.send({ clientSecret: paymentIntent.client_secret });
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
 
 
 app.listen(port, () => console.log(`Server running on port ${port}`));
