@@ -54,6 +54,20 @@ const checkUsageLimits = async (req, res, next) => {
   const userData = userDoc.data();
 
   const today = new Date().toISOString().split('T')[0];
+  
+  // Handle case where user data doesn't exist or lastReset is not set
+  if (!userData || !userData.lastReset) {
+    // Initialize user data with default values
+    await userDoc.ref.set({
+      dailyTextGenerations: 5,
+      dailyImageGenerations: 2,
+      subscriptionTier: 'free',
+      lastReset: today
+    }, { merge: true });
+    next();
+    return;
+  }
+
   const lastReset = userData.lastReset.split('T')[0];
 
   // Reset daily counts if it's a new day
@@ -263,6 +277,7 @@ app.post("/generate-outfit-image", upload.array("data"), authenticateUser, check
       console.log("Generated image for outfit");
     }
 
+    console.log(outfitImages);
     res.json({ outfitImages });
   } catch (error) {
     console.error("Error generating outfit images:", error);

@@ -1,63 +1,95 @@
 // src/contexts/UserContext.js
-import { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
-export const UserContext = createContext();
+export const UserContext = createContext({
+  user: null,
+  loading: true,
+  subscriptionLoading: false,
+  updateImageCount: () => {},
+  updateTextCount: () => {},
+  updateSubscription: () => {},
+  resetDailyLimits: () => {}
+});
 
 export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     console.log('Setting up auth listener');
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log('Auth state changed:', firebaseUser);
       
-      if (firebaseUser) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          
-          if (!userDoc.exists()) {
-            // Create new user document with default subscription values
-            await setDoc(doc(db, 'users', firebaseUser.uid), {
-              email: firebaseUser.email,
+      try {
+        if (firebaseUser) {
+          try {
+            // Get user document from Firestore
+            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+            
+            if (!userDoc.exists()) {
+              // Create new user document with default subscription values
+              console.log('Creating new user document');
+              await setDoc(doc(db, 'users', firebaseUser.uid), {
+                email: firebaseUser.email,
+                subscriptionTier: 'free',
+                dailyTextGenerations: 5,
+                dailyImageGenerations: 2,
+                lastReset: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                customerDetails: null,
+                subscriptionDetails: null
+              });
+              
+              // Get the newly created document
+              const newUserDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+              
+              if (!newUserDoc.exists()) {
+                throw new Error('Failed to create user document');
+              }
+              
+              setUser({ 
+                ...firebaseUser, 
+                ...newUserDoc.data(),
+                // Add convenience getter for token
+                getIdToken: () => firebaseUser.getIdToken()
+              });
+            } else {
+              // Use existing user document
+              console.log('Using existing user document');
+              setUser({ 
+                ...firebaseUser, 
+                ...userDoc.data(),
+                // Add convenience getter for token
+                getIdToken: () => firebaseUser.getIdToken()
+              });
+            }
+          } catch (error) {
+            console.error('Error fetching user data:', error);
+            // Still set the basic user data to avoid authentication issues
+            setUser({
+              ...firebaseUser,
               subscriptionTier: 'free',
               dailyTextGenerations: 5,
-              dailyImageGenerations: 2,
-              lastReset: new Date().toISOString(),
-              createdAt: new Date().toISOString(),
-              customerDetails: null,
-              subscriptionDetails: null
-            });
-            
-            // Get the newly created document
-            const newUserDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-            setUser({ 
-              ...firebaseUser, 
-              ...newUserDoc.data(),
-              // Add convenience getter for token
+              dailyImageGenerations: 0,
               getIdToken: () => firebaseUser.getIdToken()
             });
-          } else {
-            // Use existing user document
-            setUser({ 
-              ...firebaseUser, 
-              ...userDoc.data(),
-              // Add convenience getter for token
-              getIdToken: () => firebaseUser.getIdToken()
-            });
+            setError(error);
           }
-        } catch (error) {
-          console.error('Error fetching user data:', error);
+        } else {
           setUser(null);
         }
-      } else {
+      } catch (error) {
+        console.error('Authentication error:', error);
         setUser(null);
+        setError(error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -72,9 +104,11 @@ export function UserProvider({ children }) {
         dailyImageGenerations: newCount
       });
       setUser(prev => ({ ...prev, dailyImageGenerations: newCount }));
+      return true;
     } catch (error) {
       console.error('Error updating image count:', error);
-      throw error;
+      setError(error);
+      return false;
     }
   };
 
@@ -87,15 +121,17 @@ export function UserProvider({ children }) {
         dailyTextGenerations: newCount
       });
       setUser(prev => ({ ...prev, dailyTextGenerations: newCount }));
+      return true;
     } catch (error) {
       console.error('Error updating text count:', error);
-      throw error;
+      setError(error);
+      return false;
     }
   };
 
   // Function to update subscription tier
   const updateSubscription = async (newTier) => {
-    if (!user) return;
+    if (!user) return false;
     
     setSubscriptionLoading(true);
     
@@ -135,7 +171,8 @@ export function UserProvider({ children }) {
       return true;
     } catch (error) {
       console.error('Error updating subscription:', error);
-      throw error;
+      setError(error);
+      return false;
     } finally {
       setSubscriptionLoading(false);
     }
@@ -143,20 +180,21 @@ export function UserProvider({ children }) {
 
   // Function to reset daily limits
   const resetDailyLimits = async () => {
-    if (!user) return;
+    if (!user) return false;
     
+    const subscriptionTier = user.subscriptionTier || 'free';
     const limits = {
       lastReset: new Date().toISOString()
     };
     
     // Set tier-specific limits
-    if (user.subscriptionTier === 'free') {
+    if (subscriptionTier === 'free') {
       limits.dailyTextGenerations = 5;
       limits.dailyImageGenerations = 2;
-    } else if (user.subscriptionTier === 'premium') {
+    } else if (subscriptionTier === 'premium') {
       limits.dailyTextGenerations = 999999; // Unlimited
       limits.dailyImageGenerations = 10;
-    } else if (user.subscriptionTier === 'pro') {
+    } else if (subscriptionTier === 'pro') {
       limits.dailyTextGenerations = 999999; // Unlimited
       limits.dailyImageGenerations = 999999; // Unlimited
     }
@@ -164,8 +202,11 @@ export function UserProvider({ children }) {
     try {
       await updateDoc(doc(db, 'users', user.uid), limits);
       setUser(prev => ({ ...prev, ...limits }));
+      return true;
     } catch (error) {
       console.error('Error resetting daily limits:', error);
+      setError(error);
+      return false;
     }
   };
 
@@ -173,6 +214,7 @@ export function UserProvider({ children }) {
     <UserContext.Provider value={{ 
       user, 
       loading, 
+      error,
       subscriptionLoading,
       updateImageCount,
       updateTextCount,
