@@ -284,5 +284,177 @@ app.post('/create-payment-intent', async (req, res) => {
   }
 });
 
+// Add these routes to your server.js file
+
+// Create a payment intent for Stripe
+app.post('/create-payment-intent', authenticateUser, async (req, res) => {
+  const { amount, planId } = req.body;
+  const userId = req.user.uid;
+
+  try {
+    // Get user data to check if they already have a Stripe customer ID
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+    
+    let customerId = userData.stripeCustomerId;
+    
+    // If user doesn't have a Stripe customer ID, create one
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: req.user.email,
+        metadata: {
+          firebaseUserId: userId
+        }
+      });
+      
+      customerId = customer.id;
+      
+      // Save customer ID to user record
+      await db.collection('users').doc(userId).update({
+        stripeCustomerId: customerId
+      });
+    }
+    
+    // Create a payment intent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency: 'usd',
+      customer: customerId,
+      metadata: {
+        firebaseUserId: userId,
+        planId
+      }
+    });
+    
+    res.json({ clientSecret: paymentIntent.client_secret });
+  } catch (error) {
+    console.error('Error creating payment intent:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Webhook to handle successful payments
+app.post('/stripe-webhook', async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  
+  let event;
+  
+  try {
+    // Verify webhook signature
+    event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
+  } catch (err) {
+    console.error(`Webhook Error: ${err.message}`);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+  
+  // Handle the event based on its type
+  switch (event.type) {
+    case 'payment_intent.succeeded':
+      const paymentIntent = event.data.object;
+      
+      if (paymentIntent.metadata && paymentIntent.metadata.firebaseUserId) {
+        const userId = paymentIntent.metadata.firebaseUserId;
+        const planId = paymentIntent.metadata.planId;
+        
+        try {
+          // Update user's subscription in Firestore
+          const userRef = db.collection('users').doc(userId);
+          
+          // Set subscription details based on plan
+          const subscriptionData = {
+            subscriptionTier: planId,
+            subscriptionStatus: 'active',
+            stripePaymentIntentId: paymentIntent.id,
+            subscriptionStartDate: new Date().toISOString()
+          };
+          
+          // Set usage limits based on plan
+          if (planId === 'premium') {
+            subscriptionData.dailyTextGenerations = 999999; // Unlimited
+            subscriptionData.dailyImageGenerations = 10;
+          } else if (planId === 'pro') {
+            subscriptionData.dailyTextGenerations = 999999; // Unlimited
+            subscriptionData.dailyImageGenerations = 999999; // Unlimited
+          }
+          
+          await userRef.update(subscriptionData);
+          
+          console.log(`Updated subscription for user ${userId} to ${planId}`);
+        } catch (error) {
+          console.error('Error updating user subscription:', error);
+        }
+      }
+      break;
+      
+    case 'payment_intent.payment_failed':
+      const failedPaymentIntent = event.data.object;
+      console.log(`Payment failed for intent ${failedPaymentIntent.id}`);
+      break;
+      
+    default:
+      console.log(`Unhandled event type ${event.type}`);
+  }
+  
+  // Return a 200 response to acknowledge receipt of the event
+  res.json({ received: true });
+});
+
+// Endpoint to get subscription status
+app.get('/subscription-status', authenticateUser, async (req, res) => {
+  try {
+    const userDoc = await db.collection('users').doc(req.user.uid).get();
+    const userData = userDoc.data();
+    
+    // Return subscription details
+    res.json({
+      subscriptionTier: userData.subscriptionTier || 'free',
+      subscriptionStatus: userData.subscriptionStatus || 'inactive',
+      dailyTextGenerations: userData.dailyTextGenerations,
+      dailyImageGenerations: userData.dailyImageGenerations,
+      lastReset: userData.lastReset
+    });
+  } catch (error) {
+    console.error('Error getting subscription status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Cancel subscription endpoint
+app.post('/cancel-subscription', authenticateUser, async (req, res) => {
+  try {
+    const userDoc = await db.collection('users').doc(req.user.uid).get();
+    const userData = userDoc.data();
+    
+    if (userData.stripeSubscriptionId) {
+      // Cancel the subscription in Stripe
+      await stripe.subscriptions.update(userData.stripeSubscriptionId, {
+        cancel_at_period_end: true
+      });
+      
+      // Update user record
+      await db.collection('users').doc(req.user.uid).update({
+        subscriptionStatus: 'canceling',
+        subscriptionCanceledAt: new Date().toISOString()
+      });
+      
+      res.json({ message: 'Subscription will be canceled at the end of the billing period' });
+    } else {
+      // Downgrade immediately for users without a Stripe subscription
+      await db.collection('users').doc(req.user.uid).update({
+        subscriptionTier: 'free',
+        subscriptionStatus: 'inactive',
+        dailyTextGenerations: 5,
+        dailyImageGenerations: 2
+      });
+      
+      res.json({ message: 'Subscription canceled' });
+    }
+  } catch (error) {
+    console.error('Error canceling subscription:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 app.listen(port, () => console.log(`Server running on port ${port}`));

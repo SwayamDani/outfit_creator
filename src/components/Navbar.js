@@ -20,6 +20,7 @@ export default function Navbar() {
       <div className="nav-links">
         <Link to="/generate" className="nav-link">Generate Outfit</Link>
         <Link to="/mystery-box" className="nav-link">Mystery Box</Link>
+        <Link to="/subscription" className="nav-link">Subscription</Link>
         <button onClick={handleSignOut} className="sign-out-btn">Sign Out</button>
       </div>
     </nav>
