@@ -39,7 +39,7 @@
     "webpack-cli": "^3.3.12"
   },
   "scripts": {
-    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "start": "npm run client",
     "server": "node server.js",
     "client": "react-scripts start",
     "build": "react-scripts build",
