@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import OutfitDisplay from './OutfitDisplay';
 
+
 const UploadScreen = ({ onUpload, images, removeImage, generateOutfit, loadingState, error }) => {
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
@@ -257,7 +258,7 @@ const OutfitGenerator = () => {
       }, 2000);
 
 
-      const response = await fetch('http://localhost:5000/generate-outfits', {
+      const response = await fetch('http://18.117.8.173:5000/generate-outfits', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${await user.getIdToken()}`
@@ -272,7 +273,7 @@ const OutfitGenerator = () => {
       const data = await response.json();
       
       // Now generate the images
-      const imageResponse = await fetch('http://localhost:5000/generate-outfit-image', {
+      const imageResponse = await fetch('http://18.117.8.173:5000/generate-outfit-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

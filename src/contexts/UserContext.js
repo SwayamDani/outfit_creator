@@ -52,32 +52,47 @@ export function UserProvider({ children }) {
                 throw new Error('Failed to create user document');
               }
               
-              setUser({ 
-                ...firebaseUser, 
+              // Create a simplified user object
+              const simplifiedUser = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
                 ...newUserDoc.data(),
-                // Add convenience getter for token
                 getIdToken: () => firebaseUser.getIdToken()
-              });
+              };
+              
+              setUser(simplifiedUser);
             } else {
+              // Create a simplified user object
+              const simplifiedUser = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+                ...userDoc.data(),
+                getIdToken: () => firebaseUser.getIdToken()
+              };
+              
               // Use existing user document
               console.log('Using existing user document');
-              setUser({ 
-                ...firebaseUser, 
-                ...userDoc.data(),
-                // Add convenience getter for token
-                getIdToken: () => firebaseUser.getIdToken()
-              });
+              setUser(simplifiedUser);
             }
           } catch (error) {
             console.error('Error fetching user data:', error);
             // Still set the basic user data to avoid authentication issues
-            setUser({
-              ...firebaseUser,
+            const simplifiedUser = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+              photoURL: firebaseUser.photoURL,
               subscriptionTier: 'free',
               dailyTextGenerations: 5,
               dailyImageGenerations: 0,
               getIdToken: () => firebaseUser.getIdToken()
-            });
+            };
+            
+            setUser(simplifiedUser);
             setError(error);
           }
         } else {
