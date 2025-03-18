@@ -37,7 +37,7 @@ function App() {
   return (
     <UserProvider>
       <Router>
-        {user && <Navbar />}
+        {user || <Navbar />}
         <main className="min-h-screen bg-gray-50" style={{paddingTop:"64px"}}>
           <Routes>
             <Route path="/" element={<Home />} />

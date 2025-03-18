@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import OutfitDisplay from './OutfitDisplay';
 
+
 const UploadScreen = ({ onUpload, images, removeImage, generateOutfit, loadingState, error }) => {
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
@@ -241,7 +242,6 @@ const OutfitGenerator = () => {
 
       const data = await response.json();
       
-      // Now generate the images
       const imageResponse = await fetch('https://outfit-creator-6mmz.onrender.com/generate-outfit-image', {
         method: 'POST',
         headers: {

@@ -4,6 +4,7 @@
 /node_modules
 /.pnp
 .pnp.js
+outfitgenerator-ssh.pem
 
 # testing
 /coverage
@@ -26,3 +27,4 @@ package-lock.json
 
 *-service-account.json
 unirides-5913a-firebase-adminsdk-uo610-bdc6af5983.json
+.vercel

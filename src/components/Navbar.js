@@ -1,11 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { auth } from '../firebase';
-import { signOut } from 'firebase/auth';
+import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { Menu, X } from 'lucide-react';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -27,30 +37,43 @@ export default function Navbar() {
           
           {/* Desktop menu */}
           <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-8">
-            <Link 
-              to="/generate" 
-              className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium transition-colors"
-            >
-              Generate Outfit
-            </Link>
-            <Link 
-              to="/mystery-box" 
-              className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium transition-colors"
-            >
-              Mystery Box
-            </Link>
-            <Link 
-              to="/subscription" 
-              className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium transition-colors"
-            >
-              Subscription
-            </Link>
-            <button 
-              onClick={handleSignOut} 
-              className="ml-4 inline-flex items-center px-4 py-2 border border-indigo-600 text-sm font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-600 hover:text-white transition-colors"
-            >
-              Sign Out
-            </button>
+            {currentUser ? (
+              <>
+                <Link 
+                  to="/generate" 
+                  className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  Generate Outfit
+                </Link>
+                <Link 
+                  to="/mystery-box" 
+                  className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  Mystery Box
+                </Link>
+                <Link 
+                  to="/subscription" 
+                  className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  Subscription
+                </Link>
+                <button 
+                  onClick={handleSignOut} 
+                  className="ml-4 inline-flex items-center px-4 py-2 border border-indigo-600 text-sm font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-600 hover:text-white transition-colors"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link 
+                  to="/signin" 
+                  className="ml-4 inline-flex items-center px-4 py-2 border border-indigo-600 text-sm font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-600 hover:text-white transition-colors"
+                >
+                  Sign Up/Sign In
+                </Link>
+              </>
+            )}
           </div>
           
           {/* Mobile menu button */}
@@ -75,36 +98,57 @@ export default function Navbar() {
       {isMenuOpen && (
         <div className="sm:hidden">
           <div className="pt-2 pb-3 space-y-1">
-            <Link
-              to="/generate"
-              className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Generate Outfit
-            </Link>
-            <Link
-              to="/mystery-box"
-              className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Mystery Box
-            </Link>
-            <Link
-              to="/subscription"
-              className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Subscription
-            </Link>
-            <button
-              onClick={() => {
-                handleSignOut();
-                setIsMenuOpen(false);
-              }}
-              className="block w-full text-left px-3 py-2 text-base font-medium text-indigo-600 hover:bg-indigo-600 hover:text-white"
-            >
-              Sign Out
-            </button>
+            {currentUser ? (
+              <>
+                <Link
+                  to="/generate"
+                  className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Generate Outfit
+                </Link>
+                <Link
+                  to="/mystery-box"
+                  className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Mystery Box
+                </Link>
+                <Link
+                  to="/subscription"
+                  className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Subscription
+                </Link>
+                <button
+                  onClick={() => {
+                    handleSignOut();
+                    setIsMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-3 py-2 text-base font-medium text-indigo-600 hover:bg-indigo-600 hover:text-white"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/signup"
+                  className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
