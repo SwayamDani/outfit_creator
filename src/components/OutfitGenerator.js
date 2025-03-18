@@ -227,37 +227,7 @@ const OutfitGenerator = () => {
       const formData = new FormData();
       images.forEach(image => formData.append('images', image));
 
-      // For testing only - simulate API call with a delay
-      // In production, use your actual API endpoints
-      setTimeout(() => {
-        // Mock data for testing
-        const mockOutfitData = {
-          imageUrl: ["https://via.placeholder.com/600x800", "https://via.placeholder.com/600x800"],
-          styleName: "Casual Athletic Style",
-          isPerfectMatch: true,
-          description: "Perfect for him • Urban casual setting",
-          top: "Gray athletic t-shirt with subtle branding",
-          bottoms: "Dark wash slim-fit jeans",
-          shoes: "Black canvas sneakers with white soles",
-          accessories: "Silver watch with black leather strap",
-          outerwear: "Optional lightweight black jacket",
-          stylingTips: "This outfit works well for casual outings. The neutral color palette makes it versatile for many settings.",
-          accountType: user.subscriptionTier || 'Free',
-          remainingGenerations: user.subscriptionTier === 'free' 
-            ? 5 - (user.dailyImageGenerations || 0) 
-            : user.subscriptionTier === 'premium' 
-              ? 10 - (user.dailyImageGenerations || 0) 
-              : null,
-          totalGenerations: user.subscriptionTier === 'free' ? 5 : user.subscriptionTier === 'premium' ? 10 : null
-        };
-        
-        setOutfitData(mockOutfitData);
-        setStep('generate');
-        setLoadingState(false);
-      }, 2000);
-
-
-      const response = await fetch('http://localhost:5000/generate-outfits', {
+      const response = await fetch('https://outfit-creator-6mmz.onrender.com/generate-outfits', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${await user.getIdToken()}`
@@ -272,7 +242,7 @@ const OutfitGenerator = () => {
       const data = await response.json();
       
       // Now generate the images
-      const imageResponse = await fetch('http://localhost:5000/generate-outfit-image', {
+      const imageResponse = await fetch('https://outfit-creator-6mmz.onrender.com/generate-outfit-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

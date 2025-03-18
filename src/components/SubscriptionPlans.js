@@ -26,7 +26,7 @@ const CheckoutForm = ({ planDetails, onSuccess, onError }) => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/create-payment-intent', {
+      const response = await fetch('https://outfit-creator-6mmz.onrender.com/create-payment-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -40,8 +40,8 @@ function App() {
         {user && <Navbar />}
         <main className="min-h-screen bg-gray-50" style={{paddingTop:"64px"}}>
           <Routes>
-            <Route path="/" element={!user ? <Home /> : <Navigate to="/generate" />} />
-            <Route path="/signin" element={!user ? <SignIn /> : <Navigate to="/generate" />} />
+            <Route path="/" element={<Home />} />
+            <Route path="/signin" element={!user ? <SignIn /> : <Navigate to="/" />} />
             <Route 
               path="/generate" 
               element={user ? <OutfitGenerator /> : <Navigate to="/signin" />} 

@@ -30,7 +30,7 @@ const CheckoutForm = ({ amount, plan, onPaymentSuccess, onPaymentError }) => {
 
     try {
       // Get client secret from your backend
-      const { data } = await axios.post('http://localhost:5000/create-payment-intent', {
+      const { data } = await axios.post('https://outfit-creator-6mmz.onrender.com/create-payment-intent', {
         amount: amount * 100, // Convert to cents
         metadata: {
           userId: user.uid,
