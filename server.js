@@ -1,28 +1,34 @@
-const express = require("express");
-const multer = require("multer");
-const cors = require("cors");
-const OpenAI = require("openai");
-const fs = require("fs");
-const dotenv = require("dotenv");
-const admin = require("firebase-admin");
-const Stripe = require('stripe');
-const { get } = require("http");
+import express from 'express';
+import multer from 'multer';
+import cors from 'cors';
+import OpenAI from 'openai';
+import fs from 'fs';
+import dotenv from 'dotenv';
+import admin from 'firebase-admin';
+import Stripe from 'stripe';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { initializeApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 dotenv.config();
 
 // Initialize Firebase Admin with service account
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID,
-  measurementId: process.env.FIREBASE_MEASUREMENT_ID,
-
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 };
 
-const firebaseApp = admin.initializeApp(firebaseConfig);
+const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);

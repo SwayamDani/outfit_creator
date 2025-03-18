@@ -42,8 +42,7 @@ export default function Home() {
             <div className="bg-white rounded-xl shadow-xl p-5 flex items-center">
               <Sparkles className="h-6 w-6 text-indigo-600 mr-3" />
               <div>
-                <div className="text-lg font-semibold text-gray-900">AI</div>
-                <div className="text-lg font-semibold text-gray-900">Generated</div>
+                <div className="text-lg font-semibold text-gray-900">AI Generated</div>
               </div>
             </div>
           </div>
